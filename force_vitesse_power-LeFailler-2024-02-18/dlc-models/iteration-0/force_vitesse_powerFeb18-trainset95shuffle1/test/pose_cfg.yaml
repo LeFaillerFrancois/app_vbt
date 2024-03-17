@@ -1,0 +1,16 @@
+all_joints:
+- - 0
+- - 1
+- - 2
+all_joints_names:
+- haut
+- milieu
+- bas
+dataset: training-datasets\iteration-0\UnaugmentedDataSet_force_vitesse_powerFeb18\force_vitesse_power_LeFailler95shuffle1.mat
+global_scale: 0.8
+init_weights: C:\Users\francois\anaconda3\envs\DEEPLABCUT\lib\site-packages\deeplabcut\pose_estimation_tensorflow\models\pretrained\mobilenet_v2_1.0_224.ckpt
+location_refinement: true
+locref_stdev: 7.2801
+net_type: mobilenet_v2_1.0
+num_joints: 3
+scoremap_dir: test
