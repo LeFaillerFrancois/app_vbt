@@ -11,7 +11,7 @@ A tkinter app on pc to track barbell speed and trajectory in powerlifting.
 ![application](expected_results/app_preview.PNG)
 
 ## How it works 
-Using DeepLabCut, I've created my own light model to track the center of a barbell as well as the top and the bottom of a plate. Knowing that a calibrated plate of 20kg + is 45cm, it is then possible to convert pixels in cm and to measure speed.
+Using DeepLabCut, I've created my own light model to track the center of a barbell as well as the top and the bottom of a plate. Knowing that a calibrated plate of 20kg + is 45cm, it is then possible to convert pixels in cm and to measure speed. **Note that the default recording frequency is 30Hz, you might want to change this value as well as the plate size in the global variables**.
 
 ## How to use it
 First get a portrait side view video of any powerlifting lift with calibrated plates. Download [DeepLabCut](https://github.com/DeepLabCut/DeepLabCut) and create an python env with it. Then lauch the app, every paths should be ok but you might have to change the project path one in the yaml.
