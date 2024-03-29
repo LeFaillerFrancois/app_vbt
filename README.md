@@ -22,3 +22,6 @@ Videos and csv files will be created in the folder wich contains your original v
 Only works with calibrated plates of at least 20kg (45cm diameter). (Actually kinda work with 15kg or 10kg plates, but will not give accurate values of speed). Also, perfectly sideview is necessary for accurate bar path, otherwise only bar speed will be usable. 
 Be carefull using it to not have other plates in the camera range, could cause tracking issues. 
 For anonymisation issues I cannot provide the used training and test sets. 
+
+### In coming soon
+a requirements.txt, a force velocity profiling if multiple files and weight provided and more.
