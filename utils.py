@@ -166,6 +166,11 @@ def detect_reps_hybrid_metric_peaks(
             if (v[i] < vel_thresh) and (y_filt[i] < low_threshold_pos):
                  ends.append(i)
                  break
+             
+    # In case no start was found for the first rep if the video was misscut
+    # Very specific, but has actually happened to me. Could still drag it by hand later
+    if len(starts)<len(peaks):
+        starts.insert(0,0)
 
     return starts, ends, list(peaks)
 
@@ -387,26 +392,12 @@ def compute_load_velocity_profil(results,li_kg):
     mean_speeds = rep_speed_of_different_series.reshape(len(li_kg),1)
     regr = linear_model.LinearRegression()
     regr.fit(mean_speeds, loads) 
-    rcarre = regr.score(mean_speeds, loads) # R²
-    
-    # coeff
-    a=regr.coef_ #coefficient y= ax+b
-    b = regr.intercept_ 
-    predict=regr.predict(mean_speeds)
-    F0_1st=round(regr.predict([[0.10]])[0,0],2)
-    min_max_bench = round(regr.predict([[0.15]])[0,0],2)
-    max_max_bench = round(regr.predict([[0.12]])[0,0],2)
-    squat_dead_max = round(regr.predict([[0.25]])[0,0],2)
 
-    V0_1st=round(-b[0]/a[0,0],2)
-
-    #print("Charge maximale pour une vitesse quasi nulle (0.10m/s) : ", F0_1st,"kg.")
-    #print("Charge maximale THEORIQUE pour une vitesse nulle (0m/s) : ", b,"kg.")
-    #print("Vitesse max pour la charge la plus lourde de tes séries :", round(results[-1]["mean_speed"][0],3),"m/s.")
-    #print("Vitesse maximale pour une charge nulle : ", V0_1st,"m/s.")
-    
-    #TODO : should return a dict
-    return mean_speeds, a, b, predict, F0_1st, V0_1st, rcarre, min_max_bench, max_max_bench, squat_dead_max
+    load_velocity_profil = {
+        "mean_speeds":mean_speeds,
+        "regr":regr
+        }
+    return load_velocity_profil
 
 
 # Plot functions to help debugging

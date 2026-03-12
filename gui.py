@@ -94,8 +94,12 @@ class RepEditorWindow(tk.Toplevel):
         self.ax1.plot(res["y_filt"], color='gray', alpha=0.4, label="Position y (m)")
         self.ax2.plot(res["y_speed"], color='gray', alpha=0.4, label="Speed y (m/s)")
         
-        self.ax1.set_title("Position")
-        self.ax2.set_title("Speed")
+        self.ax1.set_xlabel("Time [Frame]")
+        self.ax2.set_xlabel("Time [Frame]")
+        self.ax1.set_ylabel("y [m]")
+        self.ax2.set_ylabel("y [m/s]")
+        self.ax1.set_title("Bar Height")
+        self.ax2.set_title("Bar Vertical Speed")
         
         # Load the first file and plot datas
         self.update_plot_data()
@@ -626,45 +630,53 @@ class MultipleFilePage(ttk.Frame):
         """Called after the user clicked on Finish in the rep editor"""
         try:
             loads = np.array([res["load"] for res in corrected_results])
-            
-            # Compute the F V profile with the new manual detection 
-            final_res = utils.compute_load_velocity_profil(corrected_results,loads)
-            
-            # TODO : tidy / clean this mess with a dict ?
-            mean_speeds, a, b, predict, F0_1st, V0_1st, rcarre, min_bench, max_bench, sq_dead_max = final_res
-            
-            
             range_of_motion = np.mean(utils.compute_ROM_across_csv(corrected_results))
+            # Compute the F V profile with the new manual detection 
+            load_velocity_profil = utils.compute_load_velocity_profil(corrected_results,loads)
+            mean_speeds = load_velocity_profil["mean_speeds"]
+            regr = load_velocity_profil["regr"]
+            # coeff
+            rsquared = regr.score(mean_speeds, loads) # R²
+            a=regr.coef_ 
+            b = regr.intercept_ 
+            predict=regr.predict(mean_speeds)
             # print(range_of_motion)
+            
             # 3. Update Text UI (discriminate between squat, bench and deadlift based on ROM
             # and when the concentric is in the rep. Do not work as intended with other exercices
             # but max sbd speeds are exercice dependant anyway
-            
             # Bench
             if (range_of_motion < 0.40) and (corrected_results[-1]["mode"]=="squat_bench_like"):
 
-                output = (f"Maximal load for an almost motionless bench (0.15m/s) < x < (0.12m/s) :  {min_bench} < x < {max_bench} kg.\n"
+                output = (f"Maximal load for an almost motionless bench : \n" 
+                          f"(0.15m/s) < x < (0.12m/s) :  {round(regr.predict([[0.15]])[0,0],2)} < x < {round(regr.predict([[0.12]])[0,0],2)} kg.\n"
+                          f"\n"
                           f"Maximal THEORICAL load if motionless (0m/s) : {b[0]}kg.\n"
-                          f"Maximal speed with no load at all : {V0_1st}m/s.")
+                          f"Maximal speed with no load at all : {round(-b[0]/a[0,0],2)}m/s.")
             # Squat
             elif (range_of_motion > 0.40) and (corrected_results[-1]["mode"]=="squat_bench_like"): 
-                output = (f"Maximal load for an almost motionless squat (0.25m/s) : {sq_dead_max} kg.\n"
+                output = (f"Maximal load for an almost motionless squat : \n"
+                          f"(0.31m/s) < x < (0.25m/s) : {round(regr.predict([[0.31]])[0,0],2)} < x < {round(regr.predict([[0.25]])[0,0],2)} kg.\n"
+                          f"\n"
                           f"Maximal THEORICAL load if motionless (0m/s) : {b[0]}kg.\n"
-                          f"Maximal speed with no load at all : {V0_1st}m/s.")
+                          f"Maximal speed with no load at all : {round(-b[0]/a[0,0],2)}m/s.")
             # Deadlift
             else : 
-                output = (f"Maximal load for an almost motionless deadlift (0.25m/s) : {sq_dead_max} kg.\n"
+                output = (f"Maximal load for an almost motionless deadlift : \n"
+                          f"(0.32m/s) < x < (0.25m/s) : {round(regr.predict([[0.32]])[0,0],2)} < x < {round(regr.predict([[0.25]])[0,0],2)} kg.\n"
+                          f"\n"
                           f"Maximal THEORICAL load if motionless (0m/s) : {b[0]}kg.\n"
-                          f"Maximal speed with no load at all : {V0_1st}m/s.")
+                          f"Maximal speed with no load at all : {round(-b[0]/a[0,0],2)}m/s.")
 
             self.result_label.config(text=output)
             
             # 4. Update Plot
             self.ax.clear()
-            self.ax.scatter(mean_speeds, loads, color='blue', label="Mean speed From validated data")
-            self.ax.plot(mean_speeds, predict, color='red', label=f"R²={rcarre:.3f}")
+            self.ax.scatter(mean_speeds, loads, color='blue', label="Mean speed")
+            self.ax.plot(mean_speeds, predict, color='red')#, label=f"R²={rsquared:.3f}")
             self.ax.set_xlabel("Speed [m/s]")
             self.ax.set_ylabel("Load [kg]")
+            self.ax.text(min(mean_speeds)+0.0*min(mean_speeds),min(loads)+0.015*min(loads),f"R² = {rsquared:.3f}", fontsize=12)
             self.ax.text(min(mean_speeds)+0.0*min(mean_speeds),min(loads)+0.0*min(loads),f"y = {round(a[0,0],1)}x + {round(b[0],1)}", fontsize=12)
             self.ax.set_title("Load Velocity Profile")
             self.ax.grid(True, linestyle=':', alpha=0.6)
