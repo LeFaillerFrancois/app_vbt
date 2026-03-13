@@ -49,7 +49,7 @@ To run this project, you need a Python environment (3.8 - 3.10 recommended).
 ### 1. Clone the repository
 ```bash
 git clone [https://github.com/LeFaillerFrancois/app_vbt.git](https://github.com/LeFaillerFrancois/app_vbt.git)
-cd barbell-tracker
+cd app_vbt
 ```
 
 ### 2. Create a Virtual Environment
