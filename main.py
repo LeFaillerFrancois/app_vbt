@@ -7,7 +7,7 @@ Created on Tue Apr 15 19:01:54 2025
 
 # folder path 
 
-import gui
+import src.gui as gui
 
 if __name__ == "__main__":
     app = gui.Application()

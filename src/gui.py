@@ -9,10 +9,10 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import matplotlib.pyplot as plt
-from video_processing import VideoProcessor
-from webcam_processing import WebcamProcessor
-from multiplefile_processing import MultipleFileProcessor
-import utils
+from src.video_processing import VideoProcessor
+from src.webcam_processing import WebcamProcessor
+from src.multiplefile_processing import MultipleFileProcessor
+import src.utils as utils
 import numpy as np
 import os
 

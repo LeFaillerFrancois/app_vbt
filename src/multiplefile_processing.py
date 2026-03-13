@@ -4,7 +4,7 @@ Created on Tue Feb 17 00:48:40 2026
 
 @author: francois
 """
-import utils
+import src.utils as utils
 import numpy as np
 
 class MultipleFileProcessor:

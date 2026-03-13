@@ -7,9 +7,9 @@ Created on Wed Feb 11 17:10:07 2026
 import cv2
 import deeplabcut
 import os
-import utils
+import src.utils as utils
 from PIL import Image, ImageTk
-from tkinter import messagebox
+#from tkinter import messagebox
 import threading
 import time
 

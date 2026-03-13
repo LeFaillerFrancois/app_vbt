@@ -10,7 +10,7 @@ from PIL import Image, ImageTk
 from dlclive import DLCLive, Processor
 import tkinter as tk
 from collections import deque
-import utils
+import src.utils as utils
 
 # TODO : finish this page
 
