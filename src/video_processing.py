@@ -14,7 +14,7 @@ import threading
 import time
 
 class VideoProcessor:
-    def __init__(self, config_path='config.yaml'):
+    def __init__(self, config_path='powerlifting_model/config.yaml'):
         self.config_path = config_path
         self.cap = None
         self.after_id = None
@@ -79,8 +79,12 @@ class VideoProcessor:
                 )
                 progress_callback(100, "Finished Analysis !")
                 # Find the created video path
-                labeled_video = resized_path.replace(".mp4", "DLC_mobnet_100_force_vitesse_powerFeb18shuffle1_48000_filtered_labeled.mp4")
-                csv_path = resized_path.replace(".mp4", "DLC_mobnet_100_force_vitesse_powerFeb18shuffle1_48000_filtered.csv")
+                if self.config_path == 'powerlifting_model/config.yaml' :
+                    labeled_video = resized_path.replace(".mp4", "DLC_mobnet_100_force_vitesse_powerFeb18shuffle1_48000_filtered_labeled.mp4")
+                    csv_path = resized_path.replace(".mp4", "DLC_mobnet_100_force_vitesse_powerFeb18shuffle1_48000_filtered.csv")
+                if self.config_path == 'calisthenics_model/config.yaml' :
+                    labeled_video = resized_path.replace(".mp4", "DLC_mobnet_100_CalisthenicsVBTMar30shuffle1_45000_filtered_labeled.mp4")
+                    csv_path = resized_path.replace(".mp4", "DLC_mobnet_100_CalisthenicsVBTMar30shuffle1_45000_filtered.csv")
                 result = utils.read_analyse_csv_routine(csv=csv_path, video_frequency=self.fps, real_plate_size=self.plate_size)
                 result["video_path"] = labeled_video
                 

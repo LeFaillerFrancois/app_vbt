@@ -5,7 +5,7 @@ Created on Tue Apr 15 19:03:19 2025
 @author: francois
 """
 
-import deeplabcut
+#import deeplabcut
 import pandas as pd
 import numpy as np
 import statistics
@@ -36,8 +36,7 @@ def load_df(csv_file_path):
     return dataframe
 
 # Get the ratio bewteen pixels in the frame and the plate size to scale everything
-def calculate_ratio(median_plate_size,real_plate_size=0.45):
-    real_plate_size = 0.45
+def calculate_ratio(median_plate_size, real_plate_size=0.45):
     ratio = real_plate_size / median_plate_size
     return ratio
 
@@ -57,8 +56,13 @@ def get_average_position(positions_deque):
 
 # Calculate the distance in pixels between the top and the bottom of the plate
 def calculate_plate_size(dataframe):
-    x2, x1 = dataframe["bas"], dataframe["haut"]
-    y2, y1 = dataframe["bas.1"], dataframe["haut.1"]
+    # Check the columns names (if calisthenics model is used)
+    suffix = "bas" if "bas" in dataframe.columns else "wrist"
+    prefix = "haut" if "bas" in dataframe.columns else "elbow"
+    
+    x2, y2 = dataframe[suffix], dataframe[f"{suffix}.1"]
+    x1, y1 = dataframe[prefix], dataframe[f"{prefix}.1"]
+    
     plate_size = np.sqrt(((x2 - x1) ** 2) + ((y2 - y1) ** 2))
     median_plate_size = statistics.median(plate_size) # Median in case of outlier detection
     return median_plate_size
@@ -216,8 +220,10 @@ def find_start_concentric(y_filt, y_speed_filt,peaks,fs=30):
                 break    
     return start_concentric
 
-def ROM(result):
-    reps_y = result["reps_y"]
+# TODO : remake this fonction, work as intended but weird way to code it
+def ROM(reps_y, result = None):
+    if result :
+        reps_y = result["reps_y"]
     roms = []
     for i in range(len(reps_y)):
         rom = np.max(reps_y[i,:])-np.min(reps_y[i,:])
@@ -226,158 +232,117 @@ def ROM(result):
 
 def compute_ROM_across_csv(results):
     average_roms = []
+    reps_y = results[0]["reps_y"]
     for i in range(len(results)):
-        roms = ROM(results[i])
+        roms = ROM(reps_y, results[i])
         average_roms.append(np.mean(np.array(roms)))
     return average_roms
 
-def read_analyse_csv_routine(
-    csv,
-    video_frequency=30,
-    real_plate_size=0.45,
-    fc=8,
-    verbatim=1
-    ):
-    """
-    csv : deeplabcut csv file
-    video_frequency : fréquence d'échantillonnage (Hz)
-    fc : fréquence de coupure (Hz)
-    real_plate_size : size of a plate (m)
-    verbatim : to print usefull info, helps debugging
-
-    """
+def compute_metrics_from_indices(x_filt, y_filt, y_speed, starts, ends, peaks, mode, start_concentric=None):
+    """Compute speeds and trajectories from indexs."""
+    mean_speed = []
+    max_speed = []
     
-    # Load the dataframe, calculate plate size, and ratio between pixel in the frame and real_plate_size
-    dataframe = load_df(csv)
-    plate_size = calculate_plate_size(dataframe)
-    ratio = calculate_ratio(plate_size,real_plate_size=real_plate_size)
-    
-    # Convert pixel into meters
-    x=dataframe["milieu"]*ratio
-    y=dataframe["milieu.1"]*ratio
-    # Filter with a low pass butterworth zero lag order 4, FC = 8 determined with residual analysis
-    # MetricVBT apparently uses fc = 10, but my model is a little worse I believe stronger filter is needed
-    x_filt=lowpass_butterworth_zero_lag(x,video_frequency,fc,4) 
-    y_filt=lowpass_butterworth_zero_lag(y,video_frequency,fc,4)
-    
-    # Determine wich exercise type the csv is (squat/bench or deadlift type)
-    # To know what part of the exercise is the concentric part
-    mode = determine_exercise_type(y_filt)
-    if verbatim == 1 :
-        print(mode)
-    # Find the reps in the time serie based on the height signal
-    # Algorythme : speed < 0.05 in the 3s before/after a peak to determine start and end of rep
-    # peaks defined as at least >20cm differences in height
-    start, end,peaks = detect_reps_hybrid_metric_peaks(y_filt, exercice_type=mode, fs=video_frequency)
-    
-    # To get similar values between lift types
-    if mode == "squat_bench_like" : 
-        y_filt = y_filt
-        y_speed_filt = compute_speed(y_filt,1/video_frequency)
-        y_speed_filt_filt = lowpass_butterworth_zero_lag(y_speed_filt,video_frequency,fc,4)
-        start_concentric = find_start_concentric(y_filt,y_speed_filt_filt,peaks,fs = video_frequency)
-
-
-    else : 
-        y_filt = y_filt[0]-y_filt
-        y_speed_filt = compute_speed(y_filt,1/video_frequency)
-        y_speed_filt_filt = lowpass_butterworth_zero_lag(y_speed_filt,video_frequency,fc,4)
-
-    
-    # Get mean and max concentric speed of each rep of the csv
-    mean_speed=[]
-    max_speed=[]
-    for i in range(len(peaks)) : 
-        if mode == "squat_bench_like" : 
-            concentric_speed = abs(y_speed_filt_filt[start_concentric[i]:end[i]])
-        else : 
-            concentric_speed = abs(y_speed_filt_filt[start[i]:peaks[i]])
-        mean_speed.append(np.mean(concentric_speed))
-        max_speed.append(np.max(concentric_speed))
-    
-    # normalizing reps on 100% to calculate mean trajectory
-    normalized_reps_y=[]
-    normalized_reps_x=[]
     for i in range(len(peaks)):
-        repetition_y = y_filt[start[i]:end[i]]
-        repetition_x = x_filt[start[i]:end[i]]
-
-        normalized_rep_x,normalized_rep_y = normalize_2d(repetition_x,repetition_y, n_points=101)
-        normalized_reps_y.append(normalized_rep_y)
-        normalized_reps_x.append(normalized_rep_x)
-
-    normalized_reps_x = np.array(normalized_reps_x)
-    normalized_reps_y = np.array(normalized_reps_y)
-
-    mean_traj_y = np.mean(normalized_reps_y, axis=0)
-    sd_traj_y = np.std(normalized_reps_y, axis=0)
-
-    mean_traj_x = np.mean(normalized_reps_x, axis=0)
-    sd_traj_x = np.std(normalized_reps_x, axis=0)
-    
-    result = {
-            "y_filt": y_filt,
-            "x_filt": x_filt,
-            "y_speed": y_speed_filt_filt,
-            "mean_speed": mean_speed,
-            "max_speed": max_speed,
-            "reps_x": normalized_reps_x,
-            "reps_y": normalized_reps_y,
-            "mean_traj_x": mean_traj_x,
-            "mean_traj_y": mean_traj_y,
-            "sd_traj_x": sd_traj_x,
-            "sd_traj_y": sd_traj_y,
-            "mode": mode,
-            "start":start,
-            "end":end,
-            "peaks":peaks,
-        }
-    if "start_concentric" in locals():
-        result["start_concentric"] = start_concentric
-    return result
-
-def update_result(result, new_starts, new_peaks, new_ends, new_start_concentric=None):     
-    # Get mean and max concentric speed of each rep of the csv
-    mean_speed=[]
-    max_speed=[]
-    for i in range(len(new_peaks)) : 
-        if new_start_concentric != None : 
-            concentric_speed = abs(result["y_speed"][new_start_concentric[i]:new_ends[i]])
-        else : 
-            concentric_speed = abs(result["y_speed"][new_starts[i]:new_peaks[i]])
+        if mode == "squat_bench_like" and start_concentric is not None:
+            slice_idx = slice(start_concentric[i], ends[i])
+        else:
+            slice_idx = slice(starts[i], peaks[i])
+            
+        concentric_speed = abs(y_speed[slice_idx])
         mean_speed.append(np.mean(concentric_speed))
         max_speed.append(np.max(concentric_speed))
     
-    # normalizing reps on 100% to calculate mean trajectory
-    normalized_reps_y=[]
-    normalized_reps_x=[]
-    for i in range(len(new_peaks)):
-        repetition_y = result["y_filt"][new_starts[i]:new_ends[i]]
-        repetition_x = result["x_filt"][new_starts[i]:new_ends[i]]
+    # Normalisation
+    reps_x, reps_y = [], []
+    for i in range(len(peaks)):
+        nx, ny = normalize_2d(x_filt[starts[i]:ends[i]], y_filt[starts[i]:ends[i]], n_points=101)
+        reps_x.append(nx)
+        reps_y.append(ny)
 
-        normalized_rep_x,normalized_rep_y = normalize_2d(repetition_x,repetition_y, n_points=101)
-        normalized_reps_y.append(normalized_rep_y)
-        normalized_reps_x.append(normalized_rep_x)
-
-    normalized_reps_x = np.array(normalized_reps_x)
-    normalized_reps_y = np.array(normalized_reps_y)
-
-    mean_traj_y = np.mean(normalized_reps_y, axis=0)
-    sd_traj_y = np.std(normalized_reps_y, axis=0)
-
-    mean_traj_x = np.mean(normalized_reps_x, axis=0)
-    sd_traj_x = np.std(normalized_reps_x, axis=0)
+    reps_x, reps_y = np.array(reps_x), np.array(reps_y)
+    roms = np.array(ROM(reps_y))
     
-    result["mean_speed"] = mean_speed
-    result["max_speed"] = max_speed
-    result["reps_x"] = normalized_reps_x
-    result["reps_y"] = normalized_reps_y
-    result["mean_traj_x"]= mean_traj_x
-    result["mean_traj_y"]= mean_traj_y
-    result["sd_traj_x"]= sd_traj_x
-    result["sd_traj_y"]= sd_traj_y
+    return {
+        "mean_speed": mean_speed,
+        "max_speed": max_speed,
+        "reps_x": reps_x,
+        "reps_y": reps_y,
+        "mean_traj_x": np.mean(reps_x, axis=0),
+        "mean_traj_y": np.mean(reps_y, axis=0),
+        "sd_traj_x": np.std(reps_x, axis=0),
+        "sd_traj_y": np.std(reps_y, axis=0),
+        "ROM":roms
+    }
+
+def preprocess_vbt_data(csv_path, video_frequency=30, real_plate_size=0.45, fc=8):
+    df = load_df(csv_path)
+    px_size = calculate_plate_size(df)
+    # If height was given (>1m), use the forearm size from an estimation of Winter anthropometric tables
+    if real_plate_size > 1:
+        upper_limb_percentage = 0.16
+        height = real_plate_size
+        forearm_size = upper_limb_percentage * height
+        forearm_size_px = px_size
+        ratio = calculate_ratio(forearm_size_px,real_plate_size=forearm_size)
+    else:
+        ratio = calculate_ratio(px_size, real_plate_size=real_plate_size)
+
+    suffix = "milieu" if "bas" in df.columns else "shoulder"
+    x_raw, y_raw = df[suffix] * ratio, df[f"{suffix}.1"] * ratio
+    
+    x_filt = lowpass_butterworth_zero_lag(x_raw, video_frequency, fc, 4)
+    y_filt = lowpass_butterworth_zero_lag(y_raw, video_frequency, fc, 4)
+    
+    return x_filt, y_filt, ratio
+
+def read_analyse_csv_routine(csv, video_frequency=30, real_plate_size=0.45, fc=8):
+    # 1. preprocess
+    x_filt, y_filt, _ = preprocess_vbt_data(csv, video_frequency, real_plate_size, fc)
+    mode = determine_exercise_type(y_filt)
+    
+    # 2. automatic rep detection
+    start, end, peaks = detect_reps_hybrid_metric_peaks(y_filt, exercice_type=mode, fs=video_frequency)
+    
+    if mode != "squat_bench_like":
+        y_filt_proc = y_filt[0] - y_filt
+    else:
+        y_filt_proc = y_filt
+        
+    y_speed = lowpass_butterworth_zero_lag(compute_speed(y_filt_proc, 1/video_frequency), video_frequency, fc, 4)
+    
+    sc = None
+    if mode == "squat_bench_like":
+        sc = find_start_concentric(y_filt_proc, y_speed, peaks, fs=video_frequency)
+
+    # 3. Final computation
+    results = compute_metrics_from_indices(x_filt, y_filt_proc, y_speed, start, end, peaks, mode, sc)
+    
+    # Adding new data to dic
+    results.update({"y_filt": y_filt_proc, "x_filt": x_filt, "y_speed": y_speed, "mode": mode, 
+                    "start": start, "end": end, "peaks": peaks, "csv_path": csv})
+    if sc: results["start_concentric"] = sc
+    return results
+
+def update_result(result, new_starts, new_peaks, new_ends, new_start_concentric=None, fps=30, real_plate_size=0.45):
+    # preprocess 
+    x_filt, y_filt, ratio = preprocess_vbt_data(result["csv_path"], fps, real_plate_size)
+    
+    mode = result["mode"]
+    y_filt_proc = (y_filt[0] - y_filt) if mode != "squat_bench_like" else y_filt
+    y_speed = lowpass_butterworth_zero_lag(compute_speed(y_filt_proc, 1/fps), fps, 8, 4)
+    
+    # computation using new index
+    metrics = compute_metrics_from_indices(x_filt, y_filt_proc, y_speed, new_starts, new_ends, new_peaks, mode, new_start_concentric)
+    
+    # Update the existing dic
+    result.update(metrics)
+    result.update({"y_filt": y_filt_proc, "x_filt": x_filt, "y_speed": y_speed, 
+                    "start": new_starts, "end": new_ends, "peaks": new_peaks})
+    if new_start_concentric: result["start_concentric"] = new_start_concentric
     
     return result
+
 
 def compute_load_velocity_profil(results,li_kg):
     

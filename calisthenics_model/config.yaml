@@ -1,20 +1,19 @@
     # Project definitions (do not edit)
-Task: force_vitesse_power
-scorer: LeFailler
-date: Feb18
+Task: CalisthenicsVBT
+scorer: francois
+date: Mar30
 multianimalproject: false
 identity:
 
     # Project path (change when moving around)
-project_path: ''
+project_path: calisthenics_model
 
     # Annotation data set configuration (and individual video cropping parameters)
 video_sets:
 bodyparts:
-- haut
-- milieu
-- bas
-
+- wrist
+- elbow
+- shoulder
 
     # Fraction of video to start/stop when extracting frames for labeling/refinement
 
@@ -25,17 +24,17 @@ bodyparts:
     # Fraction of video to start/stop when extracting frames for labeling/refinement
 start: 0
 stop: 1
-numframes2pick: 25
+numframes2pick: 15
 
     # Plotting configuration
 skeleton:
-- - haut
-  - milieu
-- - milieu
-  - bas
+- - wrist
+  - elbow
+- - elbow
+  - shoulder
 skeleton_color: black
 pcutoff: 0.6
-dotsize: 4
+dotsize: 12
 alphavalue: 0.7
 colormap: rainbow
 
@@ -46,7 +45,7 @@ iteration: 0
 default_net_type: resnet_50
 default_augmenter: default
 snapshotindex: -1
-batch_size: 2
+batch_size: 8
 
     # Cropping Parameters (for analysis and outlier frame detection)
 cropping: false

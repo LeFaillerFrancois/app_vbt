@@ -16,7 +16,7 @@ import src.utils as utils
 
 ################# WORK IN PROGRESS ############################################
 class WebcamProcessor:
-    def __init__(self, model_path="dlc-models/exported-models/DLC_force_vitesse_power_mobilenet_v2_1.0_iteration-0_shuffle-1"):
+    def __init__(self, model_path="powerlifting_model/dlc-models/exported-models/DLC_force_vitesse_power_mobilenet_v2_1.0_iteration-0_shuffle-1"):
         self.model_path = model_path
         self.cap = None
         self.dlc_live = None

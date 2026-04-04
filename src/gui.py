@@ -9,22 +9,27 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')
 from src.video_processing import VideoProcessor
 from src.webcam_processing import WebcamProcessor
 from src.multiplefile_processing import MultipleFileProcessor
 import src.utils as utils
 import numpy as np
+import pandas as pd
+import json
 import os
 
 # Window to manually edit automatic rep detection in case it didnt work as intended
 # Usable even for a single file if provided as list
 class RepEditorWindow(tk.Toplevel):
-    def __init__(self, parent, results_list, callback):
+    def __init__(self, parent, results_list, callback, fps = 30, plate_size = 0.45):
         super().__init__(parent)
         self.title("Repetition manual validation")
         self.geometry("1100x800")
-        
         self.results_list = results_list
+        self.fps = fps
+        self.plate_size = plate_size
         self.callback = callback
         self.current_idx = 0
         
@@ -208,9 +213,9 @@ class RepEditorWindow(tk.Toplevel):
         for res in self.results_list:
             
             if res["mode"] == "squat_bench_like":
-                res = utils.update_result(res, res["start"], res["peaks"], res["end"], res["start_concentric"])
+                res = utils.update_result(res, res["start"], res["peaks"], res["end"], res["start_concentric"], fps = self.fps, real_plate_size = self.plate_size)
             else: 
-                res = utils.update_result(res, res["start"], res["peaks"], res["end"])
+                res = utils.update_result(res, res["start"], res["peaks"], res["end"], fps = self.fps, real_plate_size = self.plate_size)
             
         self.callback(self.results_list)
         self.destroy()
@@ -312,11 +317,12 @@ class VideoProcessingPage(ttk.Frame):
         super().__init__(parent)
         self.controller = controller
         # Video processor logic in another .py
-        self.processor = VideoProcessor() 
+        self.processor = VideoProcessor() # Default one
         self.results_list = [0] # To be able to be access with repeditorwindow
         self.plate_size_var = tk.StringVar(value="0.45") # (m) Plate size, default value 0.45m (if calibrated)
         self.fps_var = tk.StringVar(value="30")         # (fps) Video frame rate, default value 30fps
-        
+        self.model_check = tk.BooleanVar(value = False)
+        self.size_name_variable = tk.StringVar(value="Plate Size (m):")
         self.setup_layout()
 
     def setup_layout(self):
@@ -328,7 +334,7 @@ class VideoProcessingPage(ttk.Frame):
         
         # Video player
         self.video_container = tk.Frame(self.left_panel, width=480, height=640, bg="black")
-        self.video_container.pack(pady=5)
+        self.video_container.pack(pady=2)
         self.video_container.pack_propagate(False)
         self.video_label = tk.Label(self.video_container, bg="black")
         self.video_label.pack(fill=tk.BOTH, expand=True)
@@ -336,11 +342,14 @@ class VideoProcessingPage(ttk.Frame):
         # Buttons
         self.btn_analyze = tk.Button(self.left_panel, text="Load video", 
                                      command=self.load_video, bg="#2196F3", fg="white", height=1)
-        self.btn_analyze.pack(fill=tk.X, pady=5)
+        self.btn_analyze.pack(fill=tk.X, pady=2)
 
         self.btn_edit = tk.Button(self.left_panel, text="Manual Rep Detection", 
                                   command=self.open_rep_editor, state="disabled")
-        self.btn_edit.pack(fill=tk.X, pady=5)
+        self.btn_edit.pack(fill=tk.X, pady=2)
+        self.bouton_check_calisthenics_model = tk.Checkbutton(self.left_panel, text="Experimental : Calisthenics model, check to enable",
+                                           variable=self.model_check, command=self.change_model_label_text)
+        self.bouton_check_calisthenics_model.pack(fill=tk.X, pady=2)
         
         # Progression bar
         self.progress_var = tk.DoubleVar()
@@ -354,7 +363,7 @@ class VideoProcessingPage(ttk.Frame):
         # Config frame (fps and plate size)
         config_frame = ttk.LabelFrame(self.left_panel, text="Settings", padding=5)
         config_frame.pack(fill="x", pady=5)
-        tk.Label(config_frame, text="Plate Size (m):").grid(row=0, column=0, sticky="w", padx=2)
+        tk.Label(config_frame, textvariable=self.size_name_variable).grid(row=0, column=0, sticky="w", padx=2)
         self.ent_plate = tk.Entry(config_frame, textvariable=self.plate_size_var, width=8)
         self.ent_plate.grid(row=0, column=1, padx=5, pady=2)
         
@@ -374,8 +383,32 @@ class VideoProcessingPage(ttk.Frame):
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.right_panel)
         self.canvas.get_tk_widget().pack(fill="y", expand=False)
         
+        # Saving button : Figures
+        self.btn_save_fig = tk.Button(self.right_panel, text="💾 Save Figures", 
+                                      command=self.save_figures, state="disabled", bg="#FF9800", fg="white")
+        self.btn_save_fig.pack(fill=tk.X, pady=2)
+
+        # Saving button : Data
+        self.btn_save_data = tk.Button(self.right_panel, text="📊 Save Data (CSV/Json)", 
+                                       command=self.save_data, state="disabled", bg="#4CAF50", fg="white")
+        self.btn_save_data.pack(fill=tk.X, pady=2)
+        
+        
+    def change_model_label_text(self):
+        new_text = "Height (m):" if self.model_check.get() else "Plate Size (m):"
+        self.size_name_variable.set(new_text)
+        
+    
+    def load_processor(self):
+        if self.model_check.get() :
+            self.processor = VideoProcessor(config_path="calisthenics_model/config.yaml") 
+            print("calisthenics model")
+        else : 
+            self.processor = VideoProcessor()
+            print("powerlifting model")
 
     def load_video(self):
+        self.load_processor()
         video_path = filedialog.askopenfilename(filetypes=[("Video files", "*.mp4 *.avi")])
         if video_path:
             current_plate_size = float(self.plate_size_var.get())
@@ -390,7 +423,7 @@ class VideoProcessingPage(ttk.Frame):
             self.processor.analyze_video_async(
                 video_path, 
                 self._update_ui_progress,  # Update progress bar
-                self._on_finished
+                self._on_finished,
             )
     
     # Update progress bar
@@ -409,6 +442,9 @@ class VideoProcessingPage(ttk.Frame):
             # Start the video player
             self.processor.start_playback(result['video_path'], self.video_label)
             self.update_plots(result)
+
+            self.after(0, lambda: self.btn_save_fig.config(state="normal"))
+            self.after(0, lambda: self.btn_save_data.config(state="normal"))
             #print("end : ", result["end"])
             #print("rep y : ", result["reps_y"])
 
@@ -421,13 +457,11 @@ class VideoProcessingPage(ttk.Frame):
         self.ax_path.clear()
         
         # Compute rom over reps
-        roms = utils.ROM(data)
-        roms=np.array(roms)
-        reps = np.arange(len(roms))+1
+        reps = np.arange(len(data["ROM"]))+1
         tick_label = reps
         
         # Range of motion plot
-        self.ax_rom.bar(reps, roms, tick_label=tick_label, color='skyblue')
+        self.ax_rom.bar(reps, data["ROM"], tick_label=tick_label, color='skyblue')
         self.ax_rom.set_ylabel("ROM (m)")
         self.ax_rom.set_title("Range of Motion over reps")
 
@@ -464,7 +498,7 @@ class VideoProcessingPage(ttk.Frame):
         """Open the rep editor to manually detect if needed"""
         if not self.results_list:
             return
-        editor = RepEditorWindow(self, self.results_list, self.on_editor_closed)
+        editor = RepEditorWindow(self, self.results_list, self.on_editor_closed, float(self.fps_var.get()), float(self.plate_size_var.get()))
         editor.grab_set() 
 
     def on_editor_closed(self, updated_results):
@@ -475,7 +509,102 @@ class VideoProcessingPage(ttk.Frame):
         self.update_plots(updated_results[0])
         #print("updated ends : ", updated_results[0]["end"])
         #print("updated rep y : ", updated_results[0]["reps_y"])
+        
+    def save_figures(self):
+        if not self.results_list[0]: return
+        
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".png",
+            filetypes=[("PNG info", "*.png"), ("PDF info", "*.pdf"), ("SVG info", "*.svg")],
+            title="Save Analysis Figures"
+        )
+        if file_path:
+            self.fig.savefig(file_path, dpi=300, bbox_inches='tight')
+            messagebox.showinfo("Success", f"Figures saved to:\n{file_path}")    
 
+    def ask_export_format(self):
+        """Open a window to select export format."""
+        self.chosen_format = None
+        win = tk.Toplevel(self)
+        win.title("Export Format")
+        win.geometry("300x150")
+        win.grab_set() 
+
+        tk.Label(win, text="Choose your export format:", font=("Helvetica", 10, "bold")).pack(pady=10)
+
+        btn_frame = tk.Frame(win)
+        btn_frame.pack(pady=5)
+
+        def select(fmt):
+            self.chosen_format = fmt
+            win.destroy()
+
+        tk.Button(btn_frame, text="CSV (Padding, incomplete data)", width=18, command=lambda: select("csv")).pack(pady=2)
+        tk.Button(btn_frame, text="JSON (Full Dict)", width=18, command=lambda: select("json")).pack(pady=2)
+        
+        self.wait_window(win)  
+        return self.chosen_format
+    
+    def save_data(self):
+        data = self.results_list[0]
+        if not data: return
+        
+        fmt = self.ask_export_format()
+        if not fmt: return 
+
+        if fmt == "csv":
+            file_path = filedialog.asksaveasfilename(defaultextension=".csv",
+                                                   filetypes=[("CSV files", "*.csv")])
+            if file_path:
+                self._export_to_csv_padding(data, file_path)
+        
+        elif fmt == "json":
+            file_path = filedialog.asksaveasfilename(defaultextension=".json",
+                                                   filetypes=[("JSON files", "*.json")])
+            if file_path:
+                self._export_to_json(data, file_path)
+
+    def _export_to_csv_padding(self, data, file_path):
+        try:
+            # 1. Reps metrics
+            df_reps = pd.DataFrame({
+                "Repetition": np.arange(len(data["ROM"])) + 1,
+                "ROM_m": data["ROM"],
+                "Mean_Speed_ms": data["mean_speed"],
+                "Max_Speed_ms": data["max_speed"]
+            })
+            # 2. Reps Trajectories 
+            df_signals = pd.DataFrame({
+                "Reps_x": data["x_filt"],
+                "Reps_y": data["y_filt"],
+            })
+            # Padding
+            df_final = pd.concat([df_reps, df_signals], axis=1)
+            df_final.to_csv(file_path, index=False, sep=";")
+            messagebox.showinfo("Success", "CSV exported successfully!")
+        except Exception as e:
+            messagebox.showerror("Error", f"CSV Export failed: {e}")
+
+    def _export_to_json(self, data, file_path):
+        # On définit un encodeur personnalisé
+        class NpEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, np.integer):
+                    return int(obj)
+                if isinstance(obj, np.floating):
+                    return float(obj)
+                if isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                return super(NpEncoder, self).default(obj)
+
+        try:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                # On utilise l'argument 'cls' pour passer notre encodeur
+                json.dump(data, f, cls=NpEncoder, indent=4)
+            
+            messagebox.showinfo("Success", "JSON exported successfully!")
+        except Exception as e:
+            messagebox.showerror("Error", f"JSON Export failed: {e}")
 
     def stop_process(self):
         self.processor.stop_playback()
@@ -524,7 +653,7 @@ class MultipleFilePage(ttk.Frame):
         
         self.plate_size_var = tk.StringVar(value="0.45") # (m) Plate size, default value 0.45m (if calibrated)
         self.fps_var = tk.StringVar(value="30")         # (fps) Video frame rate, default value 30fps
-        
+        self.result_to_export = {}
         # UI Layout: Left side for controls/list, Right side for Plot
         # TODO : setup layout ?
         # --- LEFT PANEL (file list view & Buttons) ---
@@ -574,6 +703,15 @@ class MultipleFilePage(ttk.Frame):
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.right_panel)
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
         
+        # Saving button : Figures
+        self.btn_save_fig = tk.Button(self.right_panel, text="💾 Save Figures", 
+                                      command=self.save_figures, state="disabled", bg="#FF9800", fg="white")
+        self.btn_save_fig.pack(fill=tk.X, pady=2)
+
+        # Saving button : Data
+        self.btn_save_data = tk.Button(self.right_panel, text="📊 Save Data (CSV/Json)", 
+                                       command=self.save_data, state="disabled", bg="#4CAF50", fg="white")
+        self.btn_save_data.pack(fill=tk.X, pady=2)
 
     def add_trial(self):
         file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
@@ -629,10 +767,14 @@ class MultipleFilePage(ttk.Frame):
     def finalize_profile_calculation(self, corrected_results):
         """Called after the user clicked on Finish in the rep editor"""
         try:
+            self.after(0, lambda: self.btn_save_fig.config(state="normal"))
+            self.after(0, lambda: self.btn_save_data.config(state="normal"))
+            
             loads = np.array([res["load"] for res in corrected_results])
             range_of_motion = np.mean(utils.compute_ROM_across_csv(corrected_results))
             # Compute the F V profile with the new manual detection 
             load_velocity_profil = utils.compute_load_velocity_profil(corrected_results,loads)
+            
             mean_speeds = load_velocity_profil["mean_speeds"]
             regr = load_velocity_profil["regr"]
             # coeff
@@ -640,6 +782,12 @@ class MultipleFilePage(ttk.Frame):
             a=regr.coef_ 
             b = regr.intercept_ 
             predict=regr.predict(mean_speeds)
+
+            self.result_to_export["loads"]=loads.tolist()
+            self.result_to_export["speeds"]=mean_speeds.reshape(-1).tolist()
+            self.result_to_export["y"]=f"{round(a[0,0],1)}x + {round(b[0],1)}"
+            self.result_to_export["R"]=f"{rsquared:.3f}"
+
             # print(range_of_motion)
             
             # 3. Update Text UI (discriminate between squat, bench and deadlift based on ROM
@@ -676,7 +824,7 @@ class MultipleFilePage(ttk.Frame):
             self.ax.plot(mean_speeds, predict, color='red')#, label=f"R²={rsquared:.3f}")
             self.ax.set_xlabel("Speed [m/s]")
             self.ax.set_ylabel("Load [kg]")
-            self.ax.text(min(mean_speeds)+0.0*min(mean_speeds),min(loads)+0.015*min(loads),f"R² = {rsquared:.3f}", fontsize=12)
+            self.ax.text(min(mean_speeds)+0.0*min(mean_speeds),min(loads)+0.010*min(loads),f"R² = {rsquared:.3f}", fontsize=12)
             self.ax.text(min(mean_speeds)+0.0*min(mean_speeds),min(loads)+0.0*min(loads),f"y = {round(a[0,0],1)}x + {round(b[0],1)}", fontsize=12)
             self.ax.set_title("Load Velocity Profile")
             self.ax.grid(True, linestyle=':', alpha=0.6)
@@ -686,7 +834,87 @@ class MultipleFilePage(ttk.Frame):
         except Exception as e:
             messagebox.showerror("Calcul Error", f"Error during final computation : {str(e)}")
             
-     
+    def save_figures(self):
+        if not self.result_to_export: return
+        
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".png",
+            filetypes=[("PNG info", "*.png"), ("PDF info", "*.pdf"), ("SVG info", "*.svg")],
+            title="Save Analysis Figures"
+        )
+        if file_path:
+            self.fig.savefig(file_path, dpi=300, bbox_inches='tight')
+            messagebox.showinfo("Success", f"Figures saved to:\n{file_path}")    
+            
+    def save_data(self):
+        data = self.result_to_export
+        if not data: return
+        
+        fmt = self.ask_export_format()
+        if not fmt: return 
+
+        if fmt == "csv":
+            file_path = filedialog.asksaveasfilename(defaultextension=".csv",
+                                                   filetypes=[("CSV files", "*.csv")])
+            if file_path:
+                self._export_to_csv_padding(data, file_path)
+        
+        elif fmt == "json":
+            file_path = filedialog.asksaveasfilename(defaultextension=".json",
+                                                   filetypes=[("JSON files", "*.json")])
+            if file_path:
+                self._export_to_json(data, file_path)
+                
+    def ask_export_format(self):
+        """Open a window to select export format."""
+        self.chosen_format = None
+        win = tk.Toplevel(self)
+        win.title("Export Format")
+        win.geometry("300x150")
+        win.grab_set() 
+
+        tk.Label(win, text="Choose your export format:", font=("Helvetica", 10, "bold")).pack(pady=10)
+
+        btn_frame = tk.Frame(win)
+        btn_frame.pack(pady=5)
+
+        def select(fmt):
+            self.chosen_format = fmt
+            win.destroy()
+
+        tk.Button(btn_frame, text="CSV (Padding, incomplete data)", width=18, command=lambda: select("csv")).pack(pady=2)
+        tk.Button(btn_frame, text="JSON (Full Dict)", width=18, command=lambda: select("json")).pack(pady=2)
+        
+        self.wait_window(win)  
+        return self.chosen_format
+    
+    def _export_to_csv_padding(self, data, file_path):
+        try:
+            # 1. Reps metrics
+            df = pd.DataFrame.from_dict(data)
+            df.to_csv(file_path, index=False, sep=";")
+            messagebox.showinfo("Success", "CSV exported successfully!")
+        except Exception as e:
+            messagebox.showerror("Error", f"CSV Export failed: {e}")
+
+    def _export_to_json(self, data, file_path):
+        try:
+            # convert numpy arrays into lists 
+            clean_data = {}
+            for k, v in data.items():
+                if isinstance(v, np.ndarray):
+                    clean_data[k] = v.tolist()
+                elif isinstance(v, (list, tuple)):
+                    clean_data[k] = [x.tolist() if isinstance(x, np.ndarray) else x for x in v]
+                else:
+                    clean_data[k] = v
+            
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(clean_data, f, indent=4)
+            messagebox.showinfo("Success", "JSON exported successfully!")
+        except Exception as e:
+            messagebox.showerror("Error", f"JSON Export failed: {e}")
+    
 
     def clear_list(self):
         self.processor.clear_data()
