@@ -1,13 +1,15 @@
 # 🏋️‍♂️ Barbell Tracker & Performance Profiler
 
-A Desktop application built with **Python**, **Tkinter**, and **DeepLabCut** to track barbell kinematics in real-time or from recorded videos. Designed for researchers, Powerlifting coaches and athletes to monitor Bar Speed, Range of Motion (ROM), and Force-Velocity Profiling.
+A Desktop application built with **Python**, **Tkinter**, and **DeepLabCut** to track barbell and bodyweight kinematics. Designed for researchers, coaches, and athletes to monitor Speed, Range of Motion (ROM), and Force-Velocity Profiling.
 
 ## 🌟 Key Features
 
-* **Video Analysis:** Automated tracking of barbell trajectory and speed with smart scaling.
+* **Multi-Modal Tracking:** Support for both Powerlifting (Barbell) and Calisthenics (Bodyweight) movements.
+* **Video Analysis:** Automated trajectory and speed tracking with smart scaling.
 * **Live Webcam Mode:** Real-time feedback using your PC's camera with on-screen smoothing (work in progress).
 * **Force-Velocity Profiling (FVP):** Multi-load analysis to determine theoretical $F_0$, $V_0$, and profile slope.
-* **Smart Repetition Detection:** Automatic detection of eccentric and concentric phases with a manual editor for perfect accuracy.
+* **Smart Repetition Detection:** Automatic detection of eccentric and concentric phases with a manual editor.
+* **Data Export:** Save your results and figures in **JSON** or **CSV** format for external analysis.
 * **Biomechanical Metrics:**
     * Mean & Peak Velocity ($m/s$).
     * Vertical Range of Motion ($cm$).
@@ -18,27 +20,30 @@ A Desktop application built with **Python**, **Tkinter**, and **DeepLabCut** to 
 ## 📸 Showcase
 
 ### 🎥 Kinematic Output
-The system generates a labeled video showing the bar path.
+The system generates a labeled video showing the bar path or joint trajectory.
 <br>
 ![returned video](read_me_preview/exemple_gif.gif)
 <br>
 
 ### 📊 Advanced Analytics
-| Main Menu | Biomachnical Metrics |  Force-Velocity Profiling |
+| Main Menu | Biomechanical Metrics | Force-Velocity Profiling |
 | :--- | :--- | :--- |
 | ![main_menu](read_me_preview/main_menu.png) | ![single_file_analysis_showcase](read_me_preview/single_file_analysis_showcase.png) | ![multiple_file_analysis_showcase](read_me_preview/multiple_file_fv_profile_showcase.png) |
 
-### 🔍 Automatic rep detection with manual validation
-![automatic_rep_detection](read_me_preview/rep_editor_showcase.png)
+### 🔍 **NEW:** Calisthenics Preview (Alpha)
+![calisthenics_preview](read_me_preview/calisthenics_model_preview.PNG)
 
 ---
 
 ## 🧠 How it Works
 
-The application utilizes a custom-trained **DeepLabCut** model (MobileNetV2 architecture).
-1.  **Tracking:** The AI tracks the center of the barbell and the edges of the plate.
-2.  **Calibration:** By knowing a standard competition plate is **45cm**, the software automatically calculates a `pixels-to-meters` scale factor. You're allowed to change the default value in plate size settings in case you're not using standard competition plate.
-3.  **Physics Engine:** Data is filtered using a **Butterworth Lowpass Filter** (via `scipy`) to remove measurement noise before calculating velocity.
+The application utilizes custom-trained **DeepLabCut** models (MobileNetV2 architecture).
+
+1. **Tracking:** * **Powerlifting:** Tracks the center of the barbell and the edges of the plate.
+   * **Calisthenics (Alpha):** Tracks wrist, elbow, and shoulder.
+2. **Calibration:** * For Barbell: Uses the standard **45cm** plate to calculate a `pixels-to-meters` scale.
+   * For Calisthenics: Uses an anatomical scaling factor (forearm length estimated at 16% of user height).
+3. **Physics Engine:** Data is filtered using a **Butterworth Lowpass Filter** (via `scipy`) to remove measurement noise before calculating velocity.
 
 ---
 
@@ -76,14 +81,19 @@ python main.py
 ---
 
 ## 📖 How to Use
+
 #### **Video Analysis**
 1. Go to **Video Processing**.
+   
+2. choose between the **Powerlifting** or **Calisthenics** model depending on your workout type (check).
 
-2. Select a side-view video (mp4).
+3. Select a side-view video (mp4).
 
-3. The software will resize the video and run the DeepLabCut inference (Progress Bar included).
+4. The software will resize the video and run the DeepLabCut inference (Progress Bar included).
 
-4. View results and edit reps if needed via the integrated Rep Editor.
+5. View results and edit reps if needed via the integrated Rep Editor.
+
+6. **NEW :** **Export:** Use the "Save" buttons to export data as CSV/JSON or save the generated figures.
 
 *Even if Github isn't made for that you can find test videos with the excepted results of the analysis in the test_video file.* 
 <br>
@@ -107,6 +117,7 @@ python main.py
 ---
 
 ## ⚠️ Limitations & Requirements
+- **NEW:** **Calisthenics Model:** Currently in Alpha. Trained on limited data (pull-ups/dips); accuracy may vary.
 - **Camera Placement**: Camera must be strictly perpendicular (side-view) to the barbell. A tilted camera will distort the ROM measurements.
 - **Environment**: Try to avoid having other plates in the background to prevent tracking interference.
 - **Hardware**: Analysis is faster with an NVIDIA GPU, but compatible with CPU-only machines.
