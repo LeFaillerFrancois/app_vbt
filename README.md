@@ -49,7 +49,7 @@ The application utilizes custom-trained **DeepLabCut** models (MobileNetV2 archi
 
 ## 🛠️ Installation & Setup
 
-To run this project, you need a Python environment (3.8 - 3.10 recommended).
+To run this project, you need a Python environment (3.8 - 3.10 recommended, I used Python 3.8.18).
 
 ### 1. Clone the repository
 ```bash
