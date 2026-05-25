@@ -2,7 +2,7 @@ deeplabcut==2.3.8
 matplotlib==3.7.4
 numpy==1.24.4
 opencv-python==4.9.0.80
-pandas==2.0.3
-Pillow==12.1.1
+pandas==1.5.3
+Pillow==10.2.0
 scikit-learn==1.3.2
-scipy==1.17.1
+scipy==1.10.1
