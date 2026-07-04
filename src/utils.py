@@ -137,7 +137,7 @@ def detect_reps_hybrid_metric_peaks(
     dt = 1 / fs
     v = compute_speed(y_filt, dt)
     v = lowpass_butterworth_zero_lag(v, fs, cutoff=cutoff, order=4)
-    v = abs(v)
+    #v = abs(v)
     
     # Find peaks (top positions)
     peaks, _ = find_peaks(y_filt, distance=fs, prominence=peak_prominence,width=10)
@@ -167,7 +167,7 @@ def detect_reps_hybrid_metric_peaks(
 
         for i in range(peak, end_search_end):
              # Metric-like end: velocity drops + high position zone
-            if (v[i] < vel_thresh) and (y_filt[i] < low_threshold_pos):
+            if (-v[i] < vel_thresh) and (y_filt[i] < low_threshold_pos):
                  ends.append(i)
                  break
              
@@ -175,6 +175,11 @@ def detect_reps_hybrid_metric_peaks(
     # Very specific, but has actually happened to me. Could still drag it by hand later
     if len(starts)<len(peaks):
         starts.insert(0,0)
+        
+    # In case no end was found for the last rep if the video was misscut
+    # Very specific, but has actually happened to me. Could still drag it by hand later
+    if len(peaks)>len(ends):
+        ends.insert(len(ends),len(y_filt)-1)
 
     return starts, ends, list(peaks)
 
@@ -348,7 +353,6 @@ def compute_load_velocity_profil(results,li_kg):
     
     rep_speed_of_different_series=[]
     for i in range(len(li_kg)):
-        print(i)
         rep_speed_of_different_series.append(np.max(results[i]["mean_speed"]))
     rep_speed_of_different_series=np.array(rep_speed_of_different_series)    
     

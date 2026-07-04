@@ -329,33 +329,45 @@ class VideoProcessingPage(ttk.Frame):
         # --- LEFT PANEL (Video player & Buttons) ---
         self.left_panel = tk.Frame(self, width=480, bg="#f0f0f0")
         self.left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=False, padx=10, pady=(5,25))
-
-        tk.Label(self.left_panel, text="VIDEO PLAYER", font=("Helvetica", 10, "bold")).pack(pady=2)
         
         # Video player
-        self.video_container = tk.Frame(self.left_panel, width=480, height=640, bg="black")
+        self.video_container = tk.Frame(self.left_panel, width=480, height=580, bg="black")
         self.video_container.pack(pady=2)
         self.video_container.pack_propagate(False)
         self.video_label = tk.Label(self.video_container, bg="black")
         self.video_label.pack(fill=tk.BOTH, expand=True)
 
         # Buttons
-        self.btn_analyze = tk.Button(self.left_panel, text="Load video", 
-                                     command=self.load_video, bg="#2196F3", fg="white", height=1)
-        self.btn_analyze.pack(fill=tk.X, pady=2)
+        btn_frame = tk.Frame(self.left_panel)
+        btn_frame.pack(fill=tk.X, pady=5)
 
-        self.btn_edit = tk.Button(self.left_panel, text="Manual Rep Detection", 
-                                  command=self.open_rep_editor, state="disabled")
-        self.btn_edit.pack(fill=tk.X, pady=2)
-        self.bouton_check_calisthenics_model = tk.Checkbutton(self.left_panel, text="Experimental : Calisthenics model, check to enable",
-                                           variable=self.model_check, command=self.change_model_label_text)
-        self.bouton_check_calisthenics_model.pack(fill=tk.X, pady=2)
+        self.btn_analyze = tk.Button(btn_frame, text="Load video",
+                                    command=self.load_video, bg="#2196F3", fg="white")
+        self.btn_analyze.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+
+        self.btn_edit = tk.Button(btn_frame, text="Manual Rep Detection",
+                                command=self.open_rep_editor, state="disabled")
+        self.btn_edit.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+
+        self.bouton_check_calisthenics_model = tk.Checkbutton(
+            btn_frame,
+            text="Calisthenics model",
+            variable=self.model_check,
+            command=self.change_model_label_text
+        )
+        self.bouton_check_calisthenics_model.pack(side=tk.LEFT, padx=5)
         
         # Progression bar
         self.progress_var = tk.DoubleVar()
         self.status_var = tk.StringVar(value="Ready")
-        self.progress_bar = ttk.Progressbar(self.left_panel, variable=self.progress_var, maximum=100)
-        self.status_label = tk.Label(self.left_panel, textvariable=self.status_var, font=("Helvetica", 9, "italic"))
+        progress_frame = tk.Frame(self.left_panel)
+        progress_frame.pack(fill=tk.X, pady=5)
+
+        self.progress_bar = ttk.Progressbar(progress_frame, variable=self.progress_var, maximum=100)
+        self.progress_bar.pack(fill=tk.X)
+
+        self.status_label = tk.Label(progress_frame, textvariable=self.status_var, font=("Helvetica", 9, "italic"))
+        self.status_label.pack(anchor="w")
         
         tk.Button(self.left_panel, text="Main Menu", 
                   command=lambda: self.controller.show_frame("StartPage")).pack(fill=tk.X, pady=5)#side=tk.BOTTOM, fill=tk.X)
@@ -539,7 +551,7 @@ class VideoProcessingPage(ttk.Frame):
             self.chosen_format = fmt
             win.destroy()
 
-        tk.Button(btn_frame, text="CSV (Padding, incomplete data)", width=18, command=lambda: select("csv")).pack(pady=2)
+        tk.Button(btn_frame, text="CSV (Padding)", width=18, command=lambda: select("csv")).pack(pady=2)
         tk.Button(btn_frame, text="JSON (Full Dict)", width=18, command=lambda: select("json")).pack(pady=2)
         
         self.wait_window(win)  
@@ -759,7 +771,7 @@ class MultipleFilePage(ttk.Frame):
                 
                 
             # Once all csv are analysed, open rep editor to manually validate in case
-            RepEditorWindow(self, all_results, self.finalize_profile_calculation)
+            RepEditorWindow(self, all_results, self.finalize_profile_calculation, current_fps, current_plate_size)
 
         except Exception as e:
             messagebox.showerror("Analyse Error", f"Erreur : {str(e)}")
@@ -824,8 +836,20 @@ class MultipleFilePage(ttk.Frame):
             self.ax.plot(mean_speeds, predict, color='red')#, label=f"R²={rsquared:.3f}")
             self.ax.set_xlabel("Speed [m/s]")
             self.ax.set_ylabel("Load [kg]")
-            self.ax.text(min(mean_speeds)+0.0*min(mean_speeds),min(loads)+0.010*min(loads),f"R² = {rsquared:.3f}", fontsize=12)
-            self.ax.text(min(mean_speeds)+0.0*min(mean_speeds),min(loads)+0.0*min(loads),f"y = {round(a[0,0],1)}x + {round(b[0],1)}", fontsize=12)
+            self.ax.text(
+                0.02, 0.10,
+                f"R² = {rsquared:.3f}",
+                transform=self.ax.transAxes,
+                fontsize=12
+            )
+            self.ax.text(
+                0.02, 0.04,
+                f"y = {a[0,0]:.1f}x + {b[0]:.1f}",
+                transform=self.ax.transAxes,
+                fontsize=12
+            )
+            #self.ax.text(min(mean_speeds)+0.0*min(mean_speeds),min(loads)+5,f"R² = {rsquared:.3f}", fontsize=12)
+            #self.ax.text(min(mean_speeds)+0.0*min(mean_speeds),min(loads)+0.0*min(loads),f"y = {round(a[0,0],1)}x + {round(b[0],1)}", fontsize=12)
             self.ax.set_title("Load Velocity Profile")
             self.ax.grid(True, linestyle=':', alpha=0.6)
             self.ax.legend()

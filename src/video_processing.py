@@ -83,8 +83,8 @@ class VideoProcessor:
                     labeled_video = resized_path.replace(".mp4", "DLC_mobnet_100_force_vitesse_powerFeb18shuffle1_48000_filtered_labeled.mp4")
                     csv_path = resized_path.replace(".mp4", "DLC_mobnet_100_force_vitesse_powerFeb18shuffle1_48000_filtered.csv")
                 if self.config_path == 'calisthenics_model/config.yaml' :
-                    labeled_video = resized_path.replace(".mp4", "DLC_mobnet_100_CalisthenicsVBTMar30shuffle1_45000_filtered_labeled.mp4")
-                    csv_path = resized_path.replace(".mp4", "DLC_mobnet_100_CalisthenicsVBTMar30shuffle1_45000_filtered.csv")
+                    labeled_video = resized_path.replace(".mp4", "DLC_mobnet_100_CalisthenicsVBTMar30shuffle1_55000_filtered_labeled.mp4")
+                    csv_path = resized_path.replace(".mp4", "DLC_mobnet_100_CalisthenicsVBTMar30shuffle1_55000_filtered.csv")
                 result = utils.read_analyse_csv_routine(csv=csv_path, video_frequency=self.fps, real_plate_size=self.plate_size)
                 result["video_path"] = labeled_video
                 
