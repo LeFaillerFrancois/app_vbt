@@ -33,6 +33,15 @@ The system generates a labeled video showing the bar path or joint trajectory.
 ### 🔍 **NEW:** Calisthenics Preview (Alpha)
 ![calisthenics_preview](read_me_preview/calisthenics_model_preview.PNG)
 
+### Usage
+![lvp_evolution](read_me_preview/force_velocity_profile.gif)
+
+---
+
+## 📚 Related repositories
+
+- 🏋️ **Validation ""study"":** [https://github.com/LeFaillerFrancois/BarTracker_app_vbt_validation](https://github.com/LeFaillerFrancois/BarTracker_app_vbt_validation)
+  
 ---
 
 ## 🧠 How it Works
@@ -113,6 +122,25 @@ python main.py
 2. In the **Multiple File Page**, add each CSV and enter the corresponding load (kg).
    
 3. Click **Compute Profile** to generate your linear regression ($Load = Velocity \times Slope + F_0$) and displays the graph.
+
+---
+
+## 📈 Validation
+
+BarTracker has been evaluated against commercially available Video-Based Velocity Training applications.
+
+The complete validation protocol, statistical analyses, figures and results are available in the companion repository:
+
+➡️ [https://github.com/LeFaillerFrancois/BarTracker_app_vbt_validation](https://github.com/LeFaillerFrancois/BarTracker_app_vbt_validation)
+
+### Summary of Results
+
+| Comparison               | Variable        |  r |  Bias | 95% LoA |
+| ------------------------ | --------------- | -: | ---: | ------: |
+| BarTracker vs Metric VBT | Mean Velocity   |  0.909  |   0.012   | [-0.048 : 0.071]        |
+| BarTracker vs Metric VBT | Range of Motion |  0.802  |  0.017   |   [-0.011 : 0.045]      |
+| BarTracker vs Qwik VBT   | Mean Velocity   |  0.966    |    0.020   |    [-0.015 : 0.055]       |
+| BarTracker vs Qwik VBT   | Range of Motion |   0.906 |  0.008    |  [-0.010 : 0.026]       |
 
 ---
 
